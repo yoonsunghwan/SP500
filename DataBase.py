@@ -26,3 +26,5 @@ def create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
+def insert_to_table(conn, db, df):
+    df.to_sql(db,conn,if_exists= 'append',index= False)

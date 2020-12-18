@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
+import pandas as pd
 
 
 def get_profile(symbol):
@@ -67,28 +68,31 @@ def get_institutional_holders(symbol):
     url = "https://finance.yahoo.com/quote/{0}/holders?p={0}"
     page = requests.get(url.format(symbol))
     soup = BeautifulSoup(page.content, 'html.parser')
-
-    values = [i.get_text(separator='|',strip = True) for i in soup.find_all('table', {'class': 'W(100%) BdB Bdc($seperatorColor)'})]
-    values = values[0].split('|')
+    try:
+        values = [i.get_text(separator='~',strip = True) for i in soup.find_all('table', {'class': 'W(100%) BdB Bdc($seperatorColor)'})]
+        values = values[0].split('~')
+    except IndexError:
+        values = [i.get_text(separator='_',strip = True) for i in soup.find_all('table', {'class': 'W(100%) BdB Bdc($seperatorColor)'})]
+        values = values[0].split('_')
 
     institutional_holders = {}
     holder = [values[i] for i in range(0,len(values),5)][1:]
-    shares = [values[i] for i in range(1,len(values),5)][1:]
+    shares = [int(values[i].replace(',', '')) for i in range(1,len(values),5) if i != 1]
     date_reported = [values[i] for i in range(2,len(values),5)][1:]
-    percent_out = [values[i] for i in range(3,len(values),5)][1:]
-    val = [values[i] for i in range(4,len(values),5)][1:]
+    percent_out = [float(values[i].replace('%', '')) for i in range(3,len(values),5) if i != 3]
+    val = [int(values[i].replace(',', '')) for i in range(4,len(values),5) if i != 4]
 
-    institutional_holders['Symbol'] = symbol
-    institutional_holders['Todays_Date'] = datetime.today().strftime("%m/%d/%y")
+    institutional_holders['Symbol'] = [symbol] * len(val)
+    institutional_holders['Todays_Date'] = [datetime.today().strftime("%m/%d/%y")] * len(val)
     institutional_holders['Holder'] = holder
     institutional_holders['Shares'] = shares
     institutional_holders['Date_Reported'] = date_reported
     institutional_holders['Percent_Out'] = percent_out
     institutional_holders['Value'] = val
 
+    institutional_holders = pd.DataFrame.from_dict(institutional_holders)
     return institutional_holders
-
-
+print(get_institutional_holders('SPG'))
 def get_mutual_fund_holders(symbol):
     """
         From yahoo finance get the TOP mutual fund holders of a company
@@ -121,19 +125,7 @@ def get_mutual_fund_holders(symbol):
     return mutualfund_holders
 
 
-def list_to_dict(values, number_of_values):
-    """
 
-    :param values: a list from the command
-    :param number_of_values:
-    :return:
-    """
-    number_of_values = number_of_values - 1
-    list_in_list = [values[i:i + number_of_values] for i in range(0, len(values), number_of_values)]
-    key_values = {}
-    for l in list_in_list:
-        key_values[l[0]]] = l[1:]
-    return key_values
 
 def get_income_statement(company):
 
@@ -170,4 +162,3 @@ def get_cash_flow(company):
     return col_values, _dates
 
 
-print(get_income_statement("A"))
